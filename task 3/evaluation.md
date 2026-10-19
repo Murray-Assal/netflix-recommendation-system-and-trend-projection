@@ -1,0 +1,5 @@
+|                           |   genre Jaccard@10 |   genre hit-rate@10 |   same-type rate@10 |   catalogue coverage |
+|:--------------------------|-------------------:|--------------------:|--------------------:|---------------------:|
+| Random baseline           |              0.158 |               0.414 |               0.928 |                0.81  |
+| Full model (with genres)  |              0.877 |               0.984 |               0.996 |                0.509 |
+| Held-out (genres removed) |              0.321 |               0.631 |               0.969 |                0.392 |
