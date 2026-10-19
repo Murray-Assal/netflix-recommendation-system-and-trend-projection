@@ -1,0 +1,8 @@
+model,MAE,RMSE,MAPE_%,bias,n
+Naive (last value),190.8,233.5,34.1,-104.9,21.0
+Linear trend (10 yr),223.0,259.5,39.4,-100.6,21.0
+3-yr moving average,239.5,282.1,42.2,-183.5,21.0
+"ARIMA(1,1,1)",230.3,296.6,40.0,25.7,21.0
+Damped Holt,232.7,306.0,40.7,40.7,21.0
+Holt (additive trend),249.1,322.9,43.7,56.9,21.0
+Log-linear trend (10 yr),258.4,333.2,46.1,36.1,21.0
