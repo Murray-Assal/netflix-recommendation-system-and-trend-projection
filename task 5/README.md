@@ -55,4 +55,4 @@ Data: `prepared_data.parquet`, 5,915 titles. The slide doesn't name a label, so 
 4. Limits: no plot or cast text, a single random split, and small classes. Adding synopsis text (TF-IDF) would likely help most.
 
 ## Reproduce
-`python classifier.py <parquet> output` (about 2 minutes on 2 cores). Charts are in `output/charts/`, tables in `output/*.csv`.
+Run `classification_model.ipynb` (about 2 minutes on 2 cores). Charts are in `output/charts/`, tables in `output/*.csv`.

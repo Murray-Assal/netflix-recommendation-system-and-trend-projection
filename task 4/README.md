@@ -46,4 +46,4 @@ Seven models were tested with a rolling-origin backtest: train through year *t*,
 5. **Small sample.** There are 21 years and 21 backtest points per model, so the ranking between close models (ARIMA vs Damped Holt, 112 vs 115) is not meaningful.
 
 ## Reproduce
-`python trend_forecast.py <parquet> output` writes charts to `output/charts/` and tables to `output/*.csv`.
+Run `trend_prediction_analysis.ipynb` writes charts to `output/charts/` and tables to `output/*.csv`.
