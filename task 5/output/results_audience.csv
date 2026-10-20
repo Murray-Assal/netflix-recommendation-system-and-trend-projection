@@ -1,0 +1,7 @@
+model,cv_f1_macro,test_accuracy,test_macro_F1
+Baseline: majority class,,0.483,0.217
+Baseline: random (class priors),,0.39,0.344
+Logistic Regression,0.644,0.652,0.643
+Decision Tree,0.619,0.646,0.639
+Random Forest,0.655,0.676,0.668
+Gradient Boosting,0.647,0.664,0.656

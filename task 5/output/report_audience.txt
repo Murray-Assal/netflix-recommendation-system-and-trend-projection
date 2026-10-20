@@ -1,0 +1,11 @@
+Best model: Random Forest
+
+              precision    recall  f1-score   support
+
+       Adult      0.715     0.754     0.734       564
+        Teen      0.571     0.596     0.583       371
+      Family      0.770     0.618     0.686       233
+
+    accuracy                          0.676      1168
+   macro avg      0.686     0.656     0.668      1168
+weighted avg      0.680     0.676     0.676      1168

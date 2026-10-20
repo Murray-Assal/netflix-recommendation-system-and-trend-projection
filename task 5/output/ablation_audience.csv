@@ -1,0 +1,7 @@
+feature_group_removed,cv_macro_F1,change
+(none - all features),0.655,0.0
+genres,0.529,-0.126
+country,0.636,-0.018
+runtime / seasons / type,0.643,-0.012
+dates (release/added/lag),0.652,-0.003
+"counts (n_genres, n_directors)",0.651,-0.004

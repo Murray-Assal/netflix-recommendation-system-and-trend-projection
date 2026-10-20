@@ -1,0 +1,10 @@
+Best model: Gradient Boosting
+
+              precision    recall  f1-score   support
+
+       Movie      0.979     0.785     0.871      1139
+     TV Show      0.093     0.568     0.159        44
+
+    accuracy                          0.777      1183
+   macro avg      0.536     0.677     0.515      1183
+weighted avg      0.946     0.777     0.845      1183
