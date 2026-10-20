@@ -1,0 +1,603 @@
+<title>Netflix Content Insights</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout concept: a quiet analyst's workbench. One sticky filter strip, six views, charts drawn by hand from the
+   data so each mark can carry a tooltip and a table twin. Colour is spent only on data. */
+:root{
+  --plane:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10); --wash:rgba(11,11,11,.045);
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --on-s:#ffffff;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --plane:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10); --wash:rgba(255,255,255,.06);
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --plane:#0d0d0d; --surface:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10); --wash:rgba(255,255,255,.06);
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--plane);color:var(--ink);font:14px/1.5 var(--sans);
+  padding-block:0;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:1180px;margin:0 auto}
+header.top{padding-block:24px 8px}
+h1{font-size:26px;line-height:1.2;margin:0;font-weight:650;letter-spacing:-.01em;text-wrap:balance}
+.sub{color:var(--ink2);margin:6px 0 0;max-width:70ch}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--border);margin-top:14px;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{appearance:none;background:none;border:0;border-bottom:2px solid transparent;color:var(--ink2);
+  padding:10px 12px;font:inherit;font-weight:550;cursor:pointer;white-space:nowrap;margin-bottom:-1px}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--s1)}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--s1);outline-offset:2px}
+.filters{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--plane);border-bottom:1px solid var(--border);
+  padding-block:10px;display:flex;flex-wrap:wrap;gap:10px 14px;align-items:end}
+.filters[hidden]{display:none}
+.filters label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink2)}
+select,input[type=search]{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--border);
+  border-radius:6px;padding:6px 8px;min-height:34px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;background:var(--surface)}
+.seg button{appearance:none;border:0;background:none;color:var(--ink2);font:inherit;padding:6px 11px;min-height:34px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--border)}
+.seg button[aria-pressed="true"]{background:var(--wash);color:var(--ink);font-weight:600}
+.btn{appearance:none;font:inherit;color:var(--ink2);background:none;border:1px solid var(--border);border-radius:6px;
+  padding:6px 10px;min-height:34px;cursor:pointer}
+.btn:hover{color:var(--ink);background:var(--wash)}
+.count{margin-left:auto;color:var(--ink2);font-size:13px;align-self:center}
+main{padding-block:18px 48px}
+section.view[hidden]{display:none}
+.lead{font-size:16px;margin:2px 0 16px;max-width:75ch;text-wrap:pretty}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;min-width:0}
+.kpi .l{color:var(--ink2);font-size:12.5px}
+.kpi .v{font-size:26px;font-weight:650;letter-spacing:-.01em;line-height:1.2;margin-top:2px}
+.kpi .n{color:var(--ink2);font-size:12px;margin-top:2px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.grid.one{grid-template-columns:minmax(0,1fr)}
+@media(max-width:820px){.grid{grid-template-columns:minmax(0,1fr)}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px 12px;min-width:0}
+.card h2{font-size:15px;margin:0;font-weight:620}
+.card .d{color:var(--ink2);font-size:12.5px;margin:2px 0 10px;max-width:64ch}
+.card-h{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.tbtn{appearance:none;font:inherit;font-size:12px;color:var(--ink2);background:none;border:1px solid var(--border);
+  border-radius:5px;padding:2px 8px;cursor:pointer;white-space:nowrap}
+.tbtn:hover{background:var(--wash);color:var(--ink)}
+.tbl{display:none;overflow-x:auto}
+.card.showtable .tbl{display:block}.card.showtable .viz{display:none}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--grid);vertical-align:top}
+th{color:var(--ink2);font-weight:550;font-size:12px;white-space:nowrap}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0 0 6px;font-size:12.5px;color:var(--ink2)}
+.legend .k{display:inline-flex;align-items:center;gap:6px;background:none;border:0;padding:0;font:inherit;color:inherit}
+.legend button.k{cursor:pointer}.legend button.k[aria-pressed="false"]{opacity:.45}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block;flex:none}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{font:11.5px var(--sans);fill:var(--ink2)}
+.ax{stroke:var(--axis);stroke-width:1}.gl{stroke:var(--grid);stroke-width:1}
+.band{fill:var(--ink);opacity:0}.hit:hover .band,.hit.on .band{opacity:.05}
+.bars{display:flex;flex-direction:column;gap:7px}
+.brow{display:grid;grid-template-columns:minmax(90px,190px) 1fr auto;gap:10px;align-items:center;font-size:13px}
+.brow .lab{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}
+.brow .track{height:14px;position:relative}
+.brow .bar{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0;background:var(--s1);min-width:2px}
+.brow .val{font-variant-numeric:tabular-nums;color:var(--ink2);min-width:3.5em;text-align:right;font-size:12.5px}
+.drow{display:grid;grid-template-columns:minmax(100px,190px) 1fr 64px;gap:10px;align-items:center;font-size:13px}
+.drow .track{height:16px;position:relative}
+.drow .track::before{content:"";position:absolute;left:50%;top:-4px;bottom:-4px;width:1px;background:var(--axis)}
+.drow .bar{position:absolute;top:0;bottom:0}
+.drow .bar.up{left:50%;background:var(--s1);border-radius:0 4px 4px 0}
+.drow .bar.dn{right:50%;background:var(--s2);border-radius:4px 0 0 4px}
+.drow .val{text-align:right;font-variant-numeric:tabular-nums;font-size:12.5px;color:var(--ink2)}
+.rows{display:flex;flex-direction:column;gap:7px}
+.tip{position:fixed;z-index:50;pointer-events:none;background:var(--surface);color:var(--ink);border:1px solid var(--border);
+  border-radius:8px;padding:8px 10px;font-size:12.5px;box-shadow:0 6px 24px rgba(0,0,0,.18);max-width:260px;display:none}
+.tip b{font-weight:620}.tip .r{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:3px}
+.tip .r span:first-child{display:inline-flex;gap:6px;align-items:center}
+.note{color:var(--ink2);font-size:12.5px;margin-top:10px;max-width:78ch}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;border:1px solid var(--border);border-radius:99px;padding:1px 8px;color:var(--ink2);white-space:nowrap}
+.cm{table-layout:fixed;text-align:center}
+.cm td,.cm th{text-align:center;padding:10px 6px}
+.cm td{border:2px solid var(--surface);font-variant-numeric:tabular-nums}
+.cm .c1{font-weight:620;font-size:15px}.cm .c2{font-size:11.5px;opacity:.85}
+.sugg{position:relative}
+.sugg ul{list-style:none;margin:4px 0 0;padding:4px;position:absolute;left:0;right:0;z-index:6;background:var(--surface);
+  border:1px solid var(--border);border-radius:8px;box-shadow:0 6px 24px rgba(0,0,0,.14);max-height:280px;overflow:auto}
+.sugg li button{display:block;width:100%;text-align:left;background:none;border:0;font:inherit;color:var(--ink);padding:6px 8px;border-radius:5px;cursor:pointer}
+.sugg li button:hover,.sugg li button:focus-visible{background:var(--wash)}
+.recrow{display:grid;grid-template-columns:28px minmax(0,1fr) 150px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--grid)}
+.recrow:last-child{border-bottom:0}
+.recrow .rk{color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.recrow .tt{font-weight:600;overflow-wrap:anywhere}
+.recrow .mm{color:var(--ink2);font-size:12.5px}
+.chips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.chip{font-size:11.5px;color:var(--ink2);background:var(--wash);border-radius:4px;padding:1px 6px}
+.chip.sh{color:var(--ink);background:color-mix(in srgb,var(--s1) 22%,var(--surface))}
+.simbar{height:8px;background:var(--wash);border-radius:4px;position:relative}
+.simbar i{position:absolute;left:0;top:0;bottom:0;background:var(--s1);border-radius:0 4px 4px 0}
+.simv{font-size:12px;color:var(--ink2);text-align:right;font-variant-numeric:tabular-nums;margin-bottom:3px}
+.acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:14px}
+.act h2{display:flex;gap:10px;align-items:baseline}
+.act .no{color:var(--muted);font-variant-numeric:tabular-nums;font-weight:600}
+.act dl{margin:10px 0 0;display:grid;gap:8px}
+.act dt{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink2);font-weight:600}
+.act dd{margin:1px 0 0}
+footer{color:var(--ink2);font-size:12.5px;border-top:1px solid var(--border);padding-block:14px 28px;max-width:90ch}
+@media (prefers-reduced-motion:no-preference){.bar{transition:width .25s ease}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Netflix Content Insights</h1>
+    <p class="sub" id="sub"></p>
+    <nav class="tabs" role="tablist" aria-label="Dashboard views" id="tabs"></nav>
+  </header>
+
+  <div class="filters" id="filters" aria-label="Filters">
+    <div><div style="font-size:12px;color:var(--ink2);margin-bottom:3px">Type</div>
+      <div class="seg" id="f-type">
+        <button data-v="all" aria-pressed="true">All</button><button data-v="0" aria-pressed="false">Movies</button><button data-v="1" aria-pressed="false">TV shows</button>
+      </div></div>
+    <label>Audience level<select id="f-aud"><option value="all">All levels</option><option value="0">Adult (TV-MA, R)</option><option value="1">Teen (TV-14, PG-13)</option><option value="2">Family (PG and below)</option></select></label>
+    <label>Country<select id="f-country"></select></label>
+    <label id="lab-from">Added from<select id="f-from"></select></label>
+    <label id="lab-to">to<select id="f-to"></select></label>
+    <button class="btn" id="f-reset" type="button">Reset</button>
+    <div class="count" id="count" aria-live="polite"></div>
+  </div>
+
+  <main>
+    <!-- OVERVIEW -->
+    <section class="view" id="overview">
+      <p class="lead" id="ov-lead"></p>
+      <div class="kpis" id="kpis"></div>
+      <div class="grid">
+        <div class="card" id="c-added"></div>
+        <div class="card" id="c-aud"></div>
+        <div class="card" id="c-countries"></div>
+        <div class="card" id="c-genres"></div>
+      </div>
+    </section>
+
+    <!-- SHIFTS -->
+    <section class="view" id="shifts" hidden>
+      <p class="lead">What Netflix added in 2020-21 looks different from what it added up to 2017: more comedy, drama and romance, far fewer documentaries and stand-up specials, and new voices from Nigeria, Egypt and Southeast Asia.</p>
+      <div class="grid">
+        <div class="card" id="c-gshift"></div>
+        <div class="card" id="c-cshift"></div>
+        <div class="card" id="c-conc" style="grid-column:1/-1"></div>
+      </div>
+      <p class="note">Compared by the year a title was added: up to 2017 against 2020-2021 (2021 runs to 25 Sep). Share means the percentage of titles in that period that carry the genre, or come from that country, so shares are not affected by the catalogue growing. The year filter does not apply on this view.</p>
+    </section>
+
+    <!-- FORECAST -->
+    <section class="view" id="forecast" hidden>
+      <p class="lead">Titles by release year rose to a peak of 744 in 2017 and have fallen since. The best short-term forecast is flat to slightly down, about 430 to 500 a year, and nothing beyond two years is reliable.</p>
+      <div class="grid one">
+        <div class="card" id="c-fc"></div>
+        <div class="card" id="c-bt"></div>
+      </div>
+      <p class="note">Models were trained on complete years 2000-2020 and scored on a rolling backtest (train through year t, predict the next one to three years, origins 2012-2019). The 2021 point is the 219 titles recorded to 25 Sep, so the full year cannot be seen. This series counts titles in this catalogue snapshot by release year; it is not Netflix's production volume.</p>
+    </section>
+
+    <!-- MODELS -->
+    <section class="view" id="models" hidden>
+      <p class="lead">Two models were built from the metadata. A classifier predicts a title's audience level (Adult, Teen or Family) with 67.6% accuracy against 48.3% for guessing the biggest class. A recommender finds same-genre titles even when genre is hidden from it.</p>
+      <div class="grid">
+        <div class="card" id="c-aud-models"></div>
+        <div class="card" id="c-conf"></div>
+        <div class="card" id="c-abl"></div>
+        <div class="card" id="c-imp"></div>
+        <div class="card" id="c-typetask"></div>
+        <div class="card" id="c-rec-eval"></div>
+      </div>
+    </section>
+
+    <!-- RECOMMENDER -->
+    <section class="view" id="recommender" hidden>
+      <p class="lead">Pick a title to see its ten closest matches. Similarity is cosine similarity on genres, director, country, rating, type and release decade, with genres weighted most.</p>
+      <div class="grid one">
+        <div class="card">
+          <div class="sugg">
+            <label style="display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--ink2)">Title
+              <input type="search" id="r-q" autocomplete="off" placeholder="Search 5,915 titles, e.g. Kung Fu Panda" aria-controls="r-list">
+            </label>
+            <ul id="r-list" hidden></ul>
+          </div>
+          <div id="r-out" style="margin-top:14px"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACTIONS -->
+    <section class="view" id="actions" hidden>
+      <p class="lead">Six recommendations, each tied to the evidence in this data. All are supply-side: the file holds no viewing, cost or revenue figures, so each one names the test that would confirm it.</p>
+      <div class="acts" id="acts"></div>
+    </section>
+  </main>
+
+  <footer>Data: 5,915 Netflix titles, added through 25 Sep 2021. Audience level is derived from the rating (Adult: TV-MA, R, NC-17; Teen: TV-14, PG-13; Family: TV-PG, PG, TV-G, G, TV-Y, TV-Y7). 78 unrated titles are left out of audience views. Charts by year start in 2015; 45 titles were added earlier. Models and forecasts come from the earlier analysis tasks and are re-used here unchanged.</footer>
+</div>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>/*__DATA__*/</script>
+<script>
+(function(){
+"use strict";
+const D = window.DATA;
+const $ = (s, r) => (r || document).querySelector(s);
+const fmt = n => Math.round(n).toLocaleString("en-US");
+const f1 = n => n.toFixed(1);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const AUD = ["Adult","Teen","Family"], TYPES = ["Movies","TV shows"];
+const R = D.rows.map(r => ({t:r[0], c:r[1], ya:r[2], ry:r[3], aud:r[4], min:r[5], seas:r[6], rt:r[7], g:r[8]}));
+const cCount = {}; R.forEach(r => cCount[r.c] = (cCount[r.c] || 0) + 1);
+const TOPC = Object.keys(cCount).map(Number).sort((a,b) => cCount[b]-cCount[a]).slice(0,15);
+const US = D.countries.indexOf("United States"), IN = D.countries.indexOf("India");
+
+const S = {type:"all", aud:"all", country:"all", from:0, to:2021};
+function pass(r, skip){
+  if (skip !== "type" && S.type !== "all" && r.t !== +S.type) return false;
+  if (skip !== "aud" && S.aud !== "all" && r.aud !== +S.aud) return false;
+  if (skip !== "country" && S.country !== "all" && r.c !== +S.country) return false;
+  if (skip !== "years" && (r.ya < S.from || r.ya > S.to)) return false;
+  return true;
+}
+const sel = skip => R.filter(r => pass(r, skip));
+
+/* ---------- tooltip ---------- */
+const tip = $("#tip");
+function showTip(html, ev){
+  tip.innerHTML = html; tip.style.display = "block";
+  const pad = 12, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + w > innerWidth - 8) x = ev.clientX - w - pad;
+  if (y + h > innerHeight - 8) y = ev.clientY - h - pad;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => { tip.style.display = "none"; };
+const dot = c => `<i class="sw" style="background:var(${c})"></i>`;
+
+/* ---------- axis helpers ---------- */
+function niceScale(max, n){
+  if (max <= 0) return {max:1, step:1};
+  const raw = max / (n || 4), p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const m = raw / p, step = (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p;
+  return {max: Math.ceil(max / step) * step, step};
+}
+const tickFmt = v => v >= 1000 ? (v / 1000) + "K" : String(v);
+
+/* ---------- stacked / single columns ---------- */
+function columns(el, o){
+  const W = Math.max(280, el.clientWidth), H = o.height || 250, m = {l:40, r:6, t:8, b:24};
+  const iw = W - m.l - m.r, ih = H - m.t - m.b, n = o.cats.length;
+  const tot = o.cats.map((_, i) => o.series.reduce((a, s) => a + s.values[i], 0));
+  const val = (s, i) => o.pct ? (tot[i] ? s.values[i] / tot[i] * 100 : 0) : s.values[i];
+  const sc = o.pct ? {max:100, step:25} : niceScale(Math.max(...tot), 4);
+  const y = v => m.t + ih - v / sc.max * ih;
+  const slot = iw / n, bw = Math.min(24, slot * .6);
+  let g = "";
+  for (let t = 0; t <= sc.max + 1e-9; t += sc.step) g += `<line class="gl" x1="${m.l}" x2="${W-m.r}" y1="${y(t)}" y2="${y(t)}"/><text x="${m.l-6}" y="${y(t)+4}" text-anchor="end">${o.pct ? t + "%" : tickFmt(t)}</text>`;
+  let b = "";
+  o.cats.forEach((c, i) => {
+    const cx = m.l + slot * i + slot / 2, x0 = cx - bw / 2;
+    let acc = 0, lastNZ = -1;
+    o.series.forEach((s, k) => { if (val(s, i) > 0) lastNZ = k; });
+    o.series.forEach((s, k) => {
+      const v = val(s, i); if (v <= 0) return;
+      const y1 = y(acc + v), y0 = y(acc); acc += v;
+      const h = Math.max(1, (y0 - y1) - (k > 0 && acc - v > 0 ? 2 : 0));
+      const col = `var(${s.color})`;
+      if (k === lastNZ && h > 5){
+        const r = 4;
+        b += `<path d="M${x0},${y1+h} V${y1+r} Q${x0},${y1} ${x0+r},${y1} H${x0+bw-r} Q${x0+bw},${y1} ${x0+bw},${y1+r} V${y1+h} Z" style="fill:${col}"/>`;
+      } else b += `<rect x="${x0}" y="${y1}" width="${bw}" height="${h}" style="fill:${col}"/>`;
+    });
+    b += `<text x="${cx}" y="${H-6}" text-anchor="middle">${esc(c)}</text>`;
+    b += `<g class="hit" data-i="${i}"><rect class="band" x="${m.l+slot*i}" y="${m.t}" width="${slot}" height="${ih}"/><rect x="${m.l+slot*i}" y="${m.t}" width="${slot}" height="${ih+m.b}" fill="transparent"/></g>`;
+  });
+  const leg = `<div class="legend">${o.series.map(s => `<span class="k">${dot(s.color)}${esc(s.name)}</span>`).join("")}</div>`;
+  el.innerHTML = leg + `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.label)}">${g}<line class="ax" x1="${m.l}" x2="${W-m.r}" y1="${y(0)}" y2="${y(0)}"/>${b}</svg>`;
+  el.querySelectorAll(".hit").forEach(h => {
+    const i = +h.dataset.i;
+    const html = `<b>${esc(o.cats[i])}</b>` + o.series.map(s => `<div class="r"><span>${dot(s.color)}${esc(s.name)}</span><span>${o.pct ? f1(val(s,i)) + "%" : fmt(s.values[i])}</span></div>`).join("") + (o.pct ? `<div class="r"><span>Titles</span><span>${fmt(tot[i])}</span></div>` : (o.series.length > 1 ? `<div class="r"><span>Total</span><span>${fmt(tot[i])}</span></div>` : ""));
+    h.addEventListener("mousemove", e => showTip(html, e));
+    h.addEventListener("mouseleave", hideTip);
+    h.addEventListener("touchstart", e => showTip(html, e.touches[0]), {passive:true});
+  });
+}
+function colsTable(o){
+  return {head:["Year", ...o.series.map(s => s.name)].concat(o.pct ? ["Titles"] : []),
+    rows:o.cats.map((c, i) => {
+      const t = o.series.reduce((a, s) => a + s.values[i], 0);
+      return [c, ...o.series.map(s => o.pct ? (t ? f1(s.values[i] / t * 100) + "%" : "-") : fmt(s.values[i]))].concat(o.pct ? [fmt(t)] : []);
+    })};
+}
+
+/* ---------- horizontal bars ---------- */
+function hbars(el, items, o){
+  o = o || {};
+  const max = Math.max(1, ...items.map(d => d.v));
+  el.innerHTML = items.length ? `<div class="bars">${items.map((d, i) => `<div class="brow" data-i="${i}"><span class="lab" title="${esc(d.l)}">${esc(d.l)}</span><span class="track"><span class="bar" style="width:${d.v / max * 100}%"></span></span><span class="val">${esc(d.t != null ? d.t : fmt(d.v))}</span></div>`).join("")}</div>` : `<p class="note">No titles match these filters.</p>`;
+  el.querySelectorAll(".brow").forEach(r => {
+    const d = items[+r.dataset.i];
+    r.addEventListener("mousemove", e => showTip(`<b>${esc(d.l)}</b><div class="r"><span>${esc(o.unit || "Titles")}</span><span>${esc(d.t != null ? d.t : fmt(d.v))}</span></div>` + (d.x ? `<div class="r"><span>${esc(d.x[0])}</span><span>${esc(d.x[1])}</span></div>` : ""), e));
+    r.addEventListener("mouseleave", hideTip);
+  });
+}
+
+/* ---------- diverging bars (change in share, points) ---------- */
+function dbars(el, items){
+  if (!items.length){ el.innerHTML = `<p class="note">Too few titles in one of the periods to compare. Widen the filters.</p>`; return; }
+  const max = Math.max(...items.map(d => Math.abs(d.v)), .5);
+  el.innerHTML = `<div class="legend"><span class="k">${dot("--s1")}Share rose</span><span class="k">${dot("--s2")}Share fell</span></div><div class="rows">${items.map((d, i) => `<div class="drow" data-i="${i}"><span class="lab" title="${esc(d.l)}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(d.l)}</span><span class="track"><span class="bar ${d.v >= 0 ? "up" : "dn"}" style="width:${Math.abs(d.v) / max * 50}%"></span></span><span class="val">${d.v > 0 ? "+" : ""}${f1(d.v)} pts</span></div>`).join("")}</div>`;
+  el.querySelectorAll(".drow").forEach(r => {
+    const d = items[+r.dataset.i];
+    r.addEventListener("mousemove", e => showTip(`<b>${esc(d.l)}</b><div class="r"><span>Up to 2017</span><span>${f1(d.a)}%</span></div><div class="r"><span>2020-21</span><span>${f1(d.b)}%</span></div><div class="r"><span>Change</span><span>${d.v > 0 ? "+" : ""}${f1(d.v)} pts</span></div>`, e));
+    r.addEventListener("mouseleave", hideTip);
+  });
+}
+
+/* ---------- cards with a table twin ---------- */
+const CARDS = {};
+function card(id, title, desc, draw, table){
+  const c = $("#" + id);
+  c.innerHTML = `<div class="card-h"><div><h2>${title}</h2>${desc ? `<p class="d">${desc}</p>` : ""}</div><button class="tbtn" type="button" aria-pressed="false">Table</button></div><div class="viz"></div><div class="tbl"></div>`;
+  CARDS[id] = {c, draw, table};
+  c.querySelector(".tbtn").addEventListener("click", e => {
+    const on = c.classList.toggle("showtable"); e.currentTarget.setAttribute("aria-pressed", on); e.currentTarget.textContent = on ? "Chart" : "Table";
+  });
+}
+function paint(id){
+  const k = CARDS[id]; if (!k) return;
+  const viz = $(".viz", k.c), tb = $(".tbl", k.c);
+  const was = k.c.classList.contains("showtable");
+  if (was) { viz.style.display = "block"; k.c.classList.remove("showtable"); }
+  k.draw(viz);
+  if (was) { k.c.classList.add("showtable"); viz.style.display = ""; }
+  const t = k.table ? k.table() : null;
+  tb.innerHTML = t ? `<table><thead><tr>${t.head.map((h, i) => `<th class="${i ? "num" : ""}">${esc(h)}</th>`).join("")}</tr></thead><tbody>${t.rows.map(r => `<tr>${r.map((c, i) => `<td class="${i ? "num" : ""}">${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>` : "";
+}
+
+/* ---------- OVERVIEW ---------- */
+const median = a => { if (!a.length) return 0; const s = a.slice().sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2; };
+function yearsRange(){ const a = []; for (let y = Math.max(S.from, 2015); y <= S.to; y++) a.push(y); return a; }
+function addedOpts(){
+  const yrs = yearsRange(), rows = sel();
+  return {label:"Titles added per year, by type", cats:yrs.map(String), pct:false,
+    series:[0, 1].map(t => ({name:TYPES[t], color:["--s1","--s2"][t], values:yrs.map(y => rows.filter(r => r.t === t && r.ya === y).length)})).filter(s => S.type === "all" || TYPES[S.type] === s.name)};
+}
+function audOpts(){
+  const yrs = yearsRange(), rows = sel("aud");
+  return {label:"Audience level of titles added, share per year", cats:yrs.map(String), pct:true,
+    series:AUD.map((a, k) => ({name:a, color:["--s1","--s2","--s3"][k], values:yrs.map(y => rows.filter(r => r.aud === k && r.ya === y).length)}))};
+}
+function countryItems(){
+  const rows = sel("country"), cnt = {}; rows.forEach(r => cnt[r.c] = (cnt[r.c] || 0) + 1);
+  return Object.keys(cnt).map(Number).sort((a, b) => cnt[b] - cnt[a]).slice(0, 10).map(c => ({l:D.countries[c], v:cnt[c], t:`${fmt(cnt[c])}  (${f1(cnt[c] / rows.length * 100)}%)`}));
+}
+function genreItems(){
+  const rows = sel(), cnt = {}; rows.forEach(r => r.g.forEach(g => cnt[g] = (cnt[g] || 0) + 1));
+  return Object.keys(cnt).map(Number).sort((a, b) => cnt[b] - cnt[a]).slice(0, 10).map(g => ({l:D.genres[g], v:cnt[g], t:`${fmt(cnt[g])}  (${f1(cnt[g] / rows.length * 100)}%)`, x:["Share of titles", f1(cnt[g] / rows.length * 100) + "%"]}));
+}
+function renderOverview(){
+  const rows = sel(), n = rows.length;
+  const mv = rows.filter(r => r.t === 0), tv = rows.filter(r => r.t === 1), rated = rows.filter(r => r.aud < 3);
+  const ctry = new Set(rows.map(r => r.c)).size;
+  const kp = [
+    ["Titles", fmt(n), S.type === "all" && S.aud === "all" && S.country === "all" ? "in this snapshot" : "match the filters"],
+    ["Movies", n ? f1(mv.length / n * 100) + "%" : "-", `${fmt(mv.length)} movies, ${fmt(tv.length)} TV shows`],
+    ["Countries", fmt(ctry), "with at least one title"],
+    mv.length >= tv.length ? ["Median movie runtime", mv.length ? Math.round(median(mv.map(r => r.min))) + " min" : "-", "movies only"] : ["Median TV length", tv.length ? Math.round(median(tv.map(r => r.seas))) + " season" : "-", "TV shows only"],
+    ["Adult-rated", rated.length ? f1(rated.filter(r => r.aud === 0).length / rated.length * 100) + "%" : "-", "of rated titles (TV-MA, R)"]
+  ];
+  $("#kpis").innerHTML = kp.map(k => `<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="n">${k[2]}</div></div>`).join("");
+  $("#count").textContent = `${fmt(n)} of ${fmt(R.length)} titles`;
+  const top = countryItems()[0];
+  $("#ov-lead").textContent = n ? `${fmt(n)} titles match.${top && S.country === "all" ? ` ${top.l} leads with ${top.t.split("  ")[1].replace(/[()]/g, "")} of them.` : ""} Use the filters above, or switch to a table with the Table button on any chart.` : "No titles match these filters.";
+  ["c-added", "c-aud", "c-countries", "c-genres"].forEach(paint);
+}
+card("c-added", "Titles added per year", "By type, using the year a title was added to Netflix.", el => columns(el, addedOpts()), () => colsTable(addedOpts()));
+card("c-aud", "Audience level of what was added", "Share of rated titles each year. Unrated titles are excluded.", el => columns(el, audOpts()), () => colsTable(audOpts()));
+card("c-countries", "Top 10 countries", "Titles by country of origin; ignores the country filter.", el => hbars(el, countryItems()), () => ({head:["Country", "Titles"], rows:countryItems().map(d => [d.l, d.t])}));
+card("c-genres", "Top 10 genres", "A title can carry up to three genres, so shares add to more than 100%.", el => hbars(el, genreItems()), () => ({head:["Genre", "Titles (share)"], rows:genreItems().map(d => [d.l, d.t])}));
+
+/* ---------- SHIFTS ---------- */
+function shiftItems(kind){
+  const rows = sel("years"), A = rows.filter(r => r.ya <= 2017), B = rows.filter(r => r.ya >= 2020);
+  if (A.length < 30 || B.length < 30) return [];
+  const cnt = (grp, key) => { const c = {}; grp.forEach(r => (kind === "g" ? r.g : [r.c]).forEach(k => c[k] = (c[k] || 0) + 1)); return c; };
+  const ca = cnt(A), cb = cnt(B), keys = new Set([...Object.keys(ca), ...Object.keys(cb)]);
+  const out = [];
+  keys.forEach(k => {
+    const a = Math.round((ca[k] || 0) / A.length * 1000) / 10, b = Math.round((cb[k] || 0) / B.length * 1000) / 10;
+    if ((ca[k] || 0) + (cb[k] || 0) < (kind === "g" ? 40 : 40)) return;
+    out.push({l:kind === "g" ? D.genres[k] : D.countries[k], a, b, v:Math.round((b - a) * 10) / 10});
+  });
+  out.sort((x, y) => y.v - x.v);
+  const k = kind === "g" ? 6 : 5;
+  return out.slice(0, k).concat(out.slice(-k)).filter((d, i, arr) => arr.findIndex(z => z.l === d.l) === i);
+}
+card("c-gshift", "Genres gaining and losing share", "Change in the share of titles carrying each genre, up to 2017 against 2020-21.", el => dbars(el, shiftItems("g")), () => ({head:["Genre", "Up to 2017", "2020-21", "Change (pts)"], rows:shiftItems("g").map(d => [d.l, f1(d.a) + "%", f1(d.b) + "%", (d.v > 0 ? "+" : "") + f1(d.v)])}));
+card("c-cshift", "Countries gaining and losing share", "Change in the share of titles from each country (countries with 40+ titles).", el => dbars(el, shiftItems("c")), () => ({head:["Country", "Up to 2017", "2020-21", "Change (pts)"], rows:shiftItems("c").map(d => [d.l, f1(d.a) + "%", f1(d.b) + "%", (d.v > 0 ? "+" : "") + f1(d.v)])}));
+function concOpts(){
+  const yrs = [2016, 2017, 2018, 2019, 2020, 2021], rows = sel("years").filter(r => S.country === "all" || true);
+  return {label:"Where titles added each year come from", cats:yrs.map(String), pct:true, height:230,
+    series:[["United States", "--s1", r => r.c === US], ["India", "--s2", r => r.c === IN], ["Rest of world", "--s3", r => r.c !== US && r.c !== IN]]
+      .map(([name, color, fn]) => ({name, color, values:yrs.map(y => rows.filter(r => r.ya === y && fn(r)).length)}))};
+}
+card("c-conc", "Where each year's additions come from", "Share of titles added per year: United States, India and everywhere else. India peaked in 2018 at 27%.", el => columns(el, concOpts()), () => colsTable(concOpts()));
+function renderShifts(){ ["c-gshift", "c-cshift", "c-conc"].forEach(paint); }
+
+/* ---------- FORECAST ---------- */
+const FC = D.forecast, MODEL_COLORS = {"ARIMA(1,1,1)":"--s1", "Naive (last value)":"--s2", "Linear trend (10 yr)":"--s3"};
+const fcOn = {"ARIMA(1,1,1)":true, "Naive (last value)":true, "Linear trend (10 yr)":true};
+function lineChart(el){
+  const W = Math.max(300, el.clientWidth), H = 330, m = {l:44, r:14, t:10, b:26};
+  const iw = W - m.l - m.r, ih = H - m.t - m.b, x0 = 2005, x1 = 2025;
+  const hist = D.history.filter(d => d.year >= x0);
+  const vis = Object.keys(fcOn).filter(k => fcOn[k]);
+  let mx = Math.max(...hist.map(d => d.n), D.partial2021);
+  vis.forEach(k => FC[k].forEach(p => { mx = Math.max(mx, p.forecast); if (k === "ARIMA(1,1,1)") mx = Math.max(mx, p.high); }));
+  const sc = niceScale(mx * 1.04, 5);
+  const X = v => m.l + (v - x0) / (x1 - x0) * iw, Y = v => m.t + ih - v / sc.max * ih;
+  let s = "";
+  for (let t = 0; t <= sc.max + 1e-9; t += sc.step) s += `<line class="gl" x1="${m.l}" x2="${W-m.r}" y1="${Y(t)}" y2="${Y(t)}"/><text x="${m.l-6}" y="${Y(t)+4}" text-anchor="end">${tickFmt(t)}</text>`;
+  for (let yy = 2005; yy <= 2025; yy += 5) s += `<text x="${X(yy)}" y="${H-6}" text-anchor="middle">${yy}</text>`;
+  s += `<line class="ax" x1="${m.l}" x2="${W-m.r}" y1="${Y(0)}" y2="${Y(0)}"/>`;
+  s += `<line x1="${X(2020.5)}" x2="${X(2020.5)}" y1="${m.t}" y2="${Y(0)}" style="stroke:var(--axis)"/><text x="${X(2020.5)+6}" y="${m.t+10}">forecast</text>`;
+  const path = pts => pts.map((p, i) => (i ? "L" : "M") + X(p[0]).toFixed(1) + "," + Y(p[1]).toFixed(1)).join(" ");
+  if (fcOn["ARIMA(1,1,1)"]){
+    const a = FC["ARIMA(1,1,1)"], last = hist[hist.length - 1];
+    const up = [[last.year, last.n]].concat(a.map(p => [p.year, p.high])), lo = [[last.year, last.n]].concat(a.map(p => [p.year, p.low])).reverse();
+    s += `<path d="${path(up)} L${path(lo).slice(1)} Z" style="fill:var(--s1);opacity:.12"/>`;
+  }
+  s += `<path d="${path(hist.map(d => [d.year, d.n]))}" fill="none" style="stroke:var(--ink);stroke-width:2;stroke-linejoin:round;stroke-linecap:round"/>`;
+  const last = hist[hist.length - 1];
+  vis.forEach(k => {
+    const pts = [[last.year, last.n]].concat(FC[k].map(p => [p.year, p.forecast]));
+    s += `<path d="${path(pts)}" fill="none" style="stroke:var(${MODEL_COLORS[k]});stroke-width:2;stroke-linejoin:round;stroke-linecap:round"/>`;
+    FC[k].forEach(p => s += `<circle cx="${X(p.year)}" cy="${Y(p.forecast)}" r="4" style="fill:var(${MODEL_COLORS[k]});stroke:var(--surface);stroke-width:2"/>`);
+  });
+  s += `<circle cx="${X(2021)}" cy="${Y(D.partial2021)}" r="4.5" style="fill:var(--surface);stroke:var(--ink);stroke-width:2"/><text x="${X(2021)+8}" y="${Y(D.partial2021)+4}">2021 so far: ${D.partial2021}</text>`;
+  const pk = hist.reduce((a, b) => b.n > a.n ? b : a);
+  s += `<circle cx="${X(pk.year)}" cy="${Y(pk.n)}" r="4" style="fill:var(--ink);stroke:var(--surface);stroke-width:2"/><text x="${X(pk.year)}" y="${Y(pk.n)-9}" text-anchor="middle">peak ${pk.n}</text>`;
+  let hit = ""; for (let yy = x0; yy <= x1; yy++) hit += `<rect class="hit" data-y="${yy}" x="${X(yy)-iw/(x1-x0)/2}" y="${m.t}" width="${iw/(x1-x0)}" height="${ih+m.b}" fill="transparent"/>`;
+  const legend = `<div class="legend"><span class="k"><i class="sw" style="background:var(--ink)"></i>Actual (complete years)</span>${Object.keys(fcOn).map(k => `<button type="button" class="k" data-m="${esc(k)}" aria-pressed="${fcOn[k]}">${dot(MODEL_COLORS[k])}${esc(k)}</button>`).join("")}</div>`;
+  el.innerHTML = legend + `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Titles by release year with forecasts to 2025">${s}<line id="xh" y1="${m.t}" y2="${Y(0)}" style="stroke:var(--ink);opacity:0"/>${hit}</svg>`;
+  el.querySelectorAll("button.k").forEach(b => b.addEventListener("click", () => { fcOn[b.dataset.m] = !fcOn[b.dataset.m]; paint("c-fc"); }));
+  const xh = el.querySelector("#xh");
+  el.querySelectorAll("rect.hit").forEach(r => {
+    const yy = +r.dataset.y;
+    r.addEventListener("mousemove", e => {
+      xh.setAttribute("x1", X(yy)); xh.setAttribute("x2", X(yy)); xh.style.opacity = .35;
+      let html = `<b>${yy}</b>`; const h = D.history.find(d => d.year === yy);
+      if (h) html += `<div class="r"><span><i class="sw" style="background:var(--ink)"></i>Actual</span><span>${fmt(h.n)}</span></div>`;
+      if (yy === 2021) html += `<div class="r"><span>Recorded to 25 Sep</span><span>${fmt(D.partial2021)}</span></div>`;
+      vis.forEach(k => { const p = FC[k].find(q => q.year === yy); if (p) html += `<div class="r"><span>${dot(MODEL_COLORS[k])}${esc(k)}</span><span>${fmt(p.forecast)}${k === "ARIMA(1,1,1)" ? ` <small>(${fmt(p.low)}-${fmt(p.high)})</small>` : ""}</span></div>`; });
+      showTip(html, e);
+    });
+    r.addEventListener("mouseleave", () => { xh.style.opacity = 0; hideTip(); });
+  });
+}
+function fcTable(){
+  const yrs = [2021, 2022, 2023, 2024, 2025], ks = Object.keys(FC);
+  return {head:["Year", ...ks.map(k => k + " (80% range)")], rows:yrs.map(y => [String(y), ...ks.map(k => { const p = FC[k].find(q => q.year === y); return `${fmt(p.forecast)} (${fmt(p.low)}-${fmt(p.high)})`; })])};
+}
+card("c-fc", "Titles by release year, with forecast to 2025", "Click a model in the key to show or hide it. The shaded band is the ARIMA 80% interval.", lineChart, fcTable);
+card("c-bt", "How well each model predicted the past", "Backtest error in titles per year (RMSE); lower is better. Best in each column is marked.", el => {
+  const B = D.backtest, best = k => Math.min(...B.map(b => b[k])), mx = Math.max(...B.map(b => b.all > b.h3 ? b.all : b.h3));
+  el.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th>Model</th><th class="num">1 year ahead</th><th class="num">3 years ahead</th><th class="num">All horizons</th></tr></thead><tbody>${B.map(b => `<tr><td>${esc(b.model)}</td>${["h1", "h3", "all"].map(k => `<td class="num">${b[k] === best(k) ? "<b>" + Math.round(b[k]) + " ✓</b>" : Math.round(b[k])}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}, () => ({head:["Model", "1 yr", "3 yr", "All"], rows:D.backtest.map(b => [b.model, Math.round(b.h1), Math.round(b.h3), Math.round(b.all)])}));
+
+/* ---------- MODELS ---------- */
+const A = D.audience;
+card("c-aud-models", "Audience-level classifier: models compared", "Test-set scores for predicting Adult, Teen or Family. Macro-F1 averages the three classes equally.", el => {
+  const rows = A.map(a => ({m:a.model, acc:a.test_accuracy, f:a.test_macro_F1, base:a.model.startsWith("Baseline")}));
+  const best = Math.max(...rows.filter(r => !r.base).map(r => r.f));
+  el.innerHTML = `<div class="rows">${rows.map(r => `<div class="brow" style="grid-template-columns:minmax(120px,190px) 1fr auto"><span class="lab" title="${esc(r.m)}">${esc(r.m.replace("random (class priors)", "random"))}</span><span class="track"><span class="bar" style="width:${r.f * 100}%;${r.base ? "background:var(--axis)" : ""}"></span></span><span class="val" style="min-width:8.5em">F1 ${r.f.toFixed(3)} · acc ${(r.acc * 100).toFixed(1)}%${r.f === best ? " ✓" : ""}</span></div>`).join("")}</div><p class="note">Random Forest scored best (check mark), chosen by cross-validation. Gaps among the four models are within test-set noise.</p>`;
+}, () => ({head:["Model", "CV macro-F1", "Test accuracy", "Test macro-F1"], rows:A.map(a => [a.model, a.cv_f1_macro < 0 ? "-" : a.cv_f1_macro.toFixed(3), a.test_accuracy.toFixed(3), a.test_macro_F1.toFixed(3)])}));
+card("c-conf", "Where the classifier gets it wrong", "Random Forest on the 1,168 test titles. Each row shows how that actual level was predicted.", el => {
+  const C = D.confusion;
+  el.innerHTML = `<table class="cm"><thead><tr><th></th><th colspan="3">Predicted</th></tr><tr><th>Actual</th>${AUD.map(a => `<th>${a}</th>`).join("")}</tr></thead><tbody>${C.map((r, i) => { const t = r.reduce((a, b) => a + b, 0); return `<tr><th>${AUD[i]}</th>${r.map((v, j) => { const p = v / t, hi = p > .45; return `<td style="background:color-mix(in srgb,var(--s1) ${Math.round(p * 95)}%,var(--surface));color:${hi ? "var(--on-s)" : "var(--ink)"}"><div class="c1">${v}</div><div class="c2">${Math.round(p * 100)}% of ${AUD[i]}</div></td>`; }).join("")}</tr>`; }).join("")}</tbody></table><p class="note">Teen is the hardest level: 35% of Teen titles are predicted Adult. The TV-14/TV-MA and PG-13/R boundaries are subjective.</p>`;
+}, () => ({head:["Actual \\ Predicted", ...AUD], rows:D.confusion.map((r, i) => [AUD[i], ...r])}));
+card("c-abl", "What the classifier relies on", "Drop in cross-validated macro-F1 when a feature group is removed (baseline 0.655).", el => {
+  const items = D.ablation.slice(1).map(a => ({l:a.feature_group_removed.charAt(0).toUpperCase() + a.feature_group_removed.slice(1), v:-a.change, t:"-" + (-a.change).toFixed(3)})).sort((a, b) => b.v - a.v);
+  hbars(el, items, {unit:"Macro-F1 lost"});
+}, () => ({head:["Group removed", "CV macro-F1", "Change"], rows:D.ablation.map(a => [a.feature_group_removed, a.cv_macro_F1.toFixed(3), a.change.toFixed(3)])}));
+card("c-imp", "Most important individual features", "Permutation importance: macro-F1 lost when the feature's values are shuffled.", el => {
+  hbars(el, D.importance.map(d => ({l:d.f.replace("genre_", "Genre: ").replace("country_", "Country: "), v:d.v, t:d.v.toFixed(3)})), {unit:"Macro-F1 lost"});
+}, () => ({head:["Feature", "Macro-F1 lost"], rows:D.importance.map(d => [d.f, d.v.toFixed(3)])}));
+card("c-typetask", "Movie vs TV Show (without giveaway columns)", "Duration and genre names identify type perfectly, so both were removed. Only 44 TV shows are in the test set.", el => {
+  const T = D.typeTask;
+  el.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th>Model</th><th class="num">ROC-AUC</th><th class="num">PR-AUC</th><th class="num">TV F1</th></tr></thead><tbody>${T.map(t => `<tr><td>${esc(t.model)}</td><td class="num">${t.test_ROC_AUC.toFixed(2)}</td><td class="num">${t.test_PR_AUC.toFixed(2)}</td><td class="num">${t.test_F1_TV_Show.toFixed(2)}</td></tr>`).join("")}</tbody></table></div><p class="note">The models rank TV shows well above chance (ROC-AUC about 0.77; PR-AUC 0.20 against a 0.04 base rate) but precision is low, so this is not a reliable type predictor.</p>`;
+}, null);
+card("c-rec-eval", "Recommender quality", "1,000 random titles, top-10 lists. The held-out row hides genre from the model.", el => {
+  const E = D.recEval;
+  el.innerHTML = `<div style="overflow-x:auto"><table><thead><tr><th>Model</th><th class="num">Genre overlap</th><th class="num">Same-genre hit rate</th><th class="num">Catalogue coverage</th></tr></thead><tbody>${E.map(e => `<tr><td>${esc(e.model)}</td><td class="num">${e["genre Jaccard@10"].toFixed(2)}</td><td class="num">${(e["genre hit-rate@10"] * 100).toFixed(0)}%</td><td class="num">${(e["catalogue coverage"] * 100).toFixed(0)}%</td></tr>`).join("")}</tbody></table></div><p class="note">With genre hidden, the model still returns a same-genre title 63% of the time (random: 39%) from director, country, rating, type and era alone.</p>`;
+}, null);
+function renderModels(){ Object.keys(CARDS).filter(k => ["c-aud-models", "c-conf", "c-abl", "c-imp", "c-typetask", "c-rec-eval"].includes(k)).forEach(paint); }
+
+/* ---------- RECOMMENDER ---------- */
+const lower = D.titles.map(t => t.toLowerCase());
+let curTitle = lower.indexOf("midnight mass"); if (curTitle < 0) curTitle = 0;
+function recRender(i){
+  curTitle = i;
+  const r = R[i], gs = new Set(r.g), nb = D.nbr[i];
+  const meta = k => `${R[k].t ? "TV show" : "Movie"} · ${esc(D.countries[R[k].c])} · ${esc(D.ratings[R[k].rt])} · ${R[k].ry}`;
+  let h = `<div style="margin-bottom:10px"><div class="tt" style="font-size:16px;font-weight:620">${esc(D.titles[i])}</div><div class="mm">${meta(i)}${D.dirs[i] ? " · Dir. " + esc(D.dirs[i]) : ""}</div><div class="chips">${r.g.map(g => `<span class="chip">${esc(D.genres[g])}</span>`).join("")}</div></div><div style="font-size:12px;color:var(--ink2);text-transform:uppercase;letter-spacing:.05em;margin:12px 0 2px">Closest matches</div>`;
+  for (let j = 0; j < nb.length; j += 2){
+    const k = nb[j], s = nb[j + 1] / 1000, shared = R[k].g.filter(g => gs.has(g)).length;
+    h += `<div class="recrow"><span class="rk">${j / 2 + 1}</span><div><div class="tt">${esc(D.titles[k])}</div><div class="mm">${meta(k)}${D.dirs[k] && D.dirs[k] === D.dirs[i] ? " · same director" : ""}</div><div class="chips">${R[k].g.map(g => `<span class="chip ${gs.has(g) ? "sh" : ""}">${esc(D.genres[g])}</span>`).join("")}</div></div><div><div class="simv">${s.toFixed(2)} similar · ${shared} shared</div><div class="simbar"><i style="width:${Math.min(100, s * 100)}%"></i></div></div></div>`;
+  }
+  $("#r-out").innerHTML = h + `<p class="note">Highlighted genres are shared with the chosen title. Similarity runs from 0 to 1.</p>`;
+}
+const q = $("#r-q"), ul = $("#r-list");
+function suggest(){
+  const v = q.value.trim().toLowerCase();
+  if (v.length < 2){ ul.hidden = true; return; }
+  const hits = [];
+  for (let i = 0; i < lower.length && hits.length < 60; i++) if (lower[i].includes(v)) hits.push(i);
+  hits.sort((a, b) => (lower[b].startsWith(v) - lower[a].startsWith(v)) || lower[a].length - lower[b].length);
+  const shown = hits.slice(0, 8);
+  ul.innerHTML = shown.length ? shown.map(i => `<li><button type="button" data-i="${i}">${esc(D.titles[i])} <span style="color:var(--ink2);font-size:12px">${R[i].t ? "TV show" : "Movie"} · ${R[i].ry}</span></button></li>`).join("") : `<li style="padding:8px;color:var(--ink2)">No title contains "${esc(v)}".</li>`;
+  ul.hidden = false;
+}
+q.addEventListener("input", suggest);
+q.addEventListener("keydown", e => { if (e.key === "Enter"){ const b = ul.querySelector("button"); if (b) b.click(); } if (e.key === "Escape") ul.hidden = true; });
+ul.addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; const i = +b.dataset.i; q.value = D.titles[i]; ul.hidden = true; recRender(i); });
+document.addEventListener("click", e => { if (!e.target.closest(".sugg")) ul.hidden = true; });
+
+/* ---------- ACTIONS ---------- */
+const ACTS = [
+  ["Plan for flat volume and compete on mix", "Titles by release year peaked at 744 in 2017 and were 503 in 2020. The best short-term forecast is 461 for 2021, easing to about 427 by 2025.", "Medium. Backtest error is 112 titles at one year but over 300 at three, so only the next year or two is dependable.", "Compare each new year's count with the forecast range (387-535 for 2021)."],
+  ["Keep shifting toward comedy, drama, romance and action", "Comedies rose from 20.3% to 30.9% of titles added (up to 2017 against 2020-21), Romantic Movies from 5.9% to 12.4%, Action & Adventure from 9.7% to 15.6%. Documentaries fell from 23.8% to 7.6% and stand-up from 9.2% to 2.5%.", "Medium. This shows what was added, not what was watched.", "Compare viewing hours per title by genre before moving budget."],
+  ["Scale local content in rising markets", "Nigeria went from 0.3% to 3.1% of titles added, Egypt from 0% to 2.6%, Indonesia from 0.1% to 1.9% and the Philippines from 0% to 1.8%. The UK fell from 9.7% to 5.3%. India peaked at 27% of 2018 additions and settled near 14%.", "Medium. Nigeria and Egypt have only about 100 titles each.", "Pilot local-language slates and compare retention with imported titles."],
+  ["Grow TV series", "TV shows are 3.7% of titles, but their share of additions rose from 2.1% in 2018 to 5.7% in 2021.", "Low. Only 219 shows are in the file and it holds no retention data.", "Compare series completion and return rates with films."],
+  ["Serve families on purpose", "Family-rated titles are 20% of rated titles (1,165 of 5,837) and 20% of 2020-21 additions, while Adult is 46% and Teen grew from 25% to 34%.", "Low to medium. Whether 20% is too low depends on household viewing.", "Check family-profile viewing against the supply of family titles."],
+  ["Use the models as helpers, not decision makers", "The recommender returns a same-genre title 63% of the time without seeing genre (random: 39%), which suits new titles with no viewing history. The audience classifier is right 67.6% of the time, too low to assign ratings.", "Medium for the recommender, low for automatic rating.", "Use the classifier to flag the 78 unrated titles and rating mismatches for human review."]
+];
+$("#acts").innerHTML = ACTS.map((a, i) => `<article class="card act"><h2><span class="no">${i + 1}</span>${esc(a[0])}</h2><dl><div><dt>Evidence</dt><dd>${esc(a[1])}</dd></div><div><dt>Confidence</dt><dd>${esc(a[2])}</dd></div><div><dt>How to test it</dt><dd>${esc(a[3])}</dd></div></dl></article>`).join("");
+
+/* ---------- filters, tabs, boot ---------- */
+const VIEWS = ["overview", "shifts", "forecast", "models", "recommender", "actions"];
+const LABELS = {overview:"Overview", shifts:"What's changing", forecast:"Forecast", models:"Models", recommender:"Recommender", actions:"Actions"};
+const FILTERED = {overview:true, shifts:true};
+let cur = "overview";
+$("#tabs").innerHTML = VIEWS.map(v => `<button role="tab" id="t-${v}" data-v="${v}" aria-selected="false">${LABELS[v]}</button>`).join("");
+function show(v){
+  if (!VIEWS.includes(v)) v = "overview";
+  cur = v;
+  VIEWS.forEach(x => { $("#" + x).hidden = x !== v; $("#t-" + x).setAttribute("aria-selected", x === v); });
+  $("#filters").hidden = !FILTERED[v];
+  $("#lab-from").hidden = $("#lab-to").hidden = v === "shifts";
+  hideTip(); window.scrollTo(0, 0); render();
+}
+function render(){
+  if (cur === "overview") renderOverview();
+  else if (cur === "shifts"){ $("#count").textContent = `${fmt(sel("years").length)} of ${fmt(R.length)} titles`; renderShifts(); }
+  else if (cur === "forecast"){ paint("c-fc"); paint("c-bt"); }
+  else if (cur === "models") renderModels();
+  else if (cur === "recommender") recRender(curTitle);
+}
+$("#tabs").addEventListener("click", e => { const b = e.target.closest("button"); if (b){ try { history.replaceState(null, "", "#" + b.dataset.v); } catch(_){} show(b.dataset.v); } });
+window.addEventListener("hashchange", () => show(location.hash.slice(1)));
+const yrOpts = []; for (let y = 2015; y <= 2021; y++) yrOpts.push(`<option value="${y}">${y}</option>`);
+$("#f-from").innerHTML = `<option value="0">Any year</option>` + yrOpts.join(""); $("#f-to").innerHTML = yrOpts.join(""); $("#f-to").value = 2021;
+$("#f-country").innerHTML = `<option value="all">All countries</option>` + TOPC.map(c => `<option value="${c}">${esc(D.countries[c])}</option>`).join("");
+$("#f-type").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; S.type = b.dataset.v; $("#f-type").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); render(); });
+$("#f-aud").addEventListener("change", e => { S.aud = e.target.value; render(); });
+$("#f-country").addEventListener("change", e => { S.country = e.target.value; render(); });
+$("#f-from").addEventListener("change", e => { S.from = +e.target.value; if (S.from && S.from > S.to){ S.to = S.from; $("#f-to").value = S.to; } render(); });
+$("#f-to").addEventListener("change", e => { S.to = +e.target.value; if (S.from && S.to < S.from){ S.from = S.to; $("#f-from").value = S.from; } render(); });
+$("#f-reset").addEventListener("click", () => { Object.assign(S, {type:"all", aud:"all", country:"all", from:0, to:2021}); $("#f-aud").value = "all"; $("#f-country").value = "all"; $("#f-from").value = 0; $("#f-to").value = 2021; $("#f-type").querySelectorAll("button").forEach((x, i) => x.setAttribute("aria-pressed", i === 0)); render(); });
+$("#sub").textContent = `${fmt(R.length)} titles, added to Netflix through ${new Date(D.snapshot + "T00:00:00").toLocaleDateString("en-GB", {day:"numeric", month:"short", year:"numeric"})}. Filter, compare, forecast and look up recommendations.`;
+let rt; new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(render, 120); }).observe(document.body);
+show(location.hash.slice(1) || "overview");
+})();
+</script>
